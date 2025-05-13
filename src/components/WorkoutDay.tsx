@@ -26,9 +26,8 @@ interface WorkoutDayProps {
 }
 
 const WorkoutDay: React.FC<WorkoutDayProps> = ({ id, day, focus, data }) => {
-  const { completedExercises, completedMeals, toggleExercise, toggleMeal } = useProgressStore();
+  const { completedExercises, completedMeals, toggleExercise, toggleMeal, currentWeek, creatineStatus, toggleCreatine } = useProgressStore();
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
-  const [creatineChecked, setCreatineChecked] = useState(false);
 
   const getExerciseId = (dayId: string, index: number) => `${dayId}-exercise-${index}`;
   const getMealId = (dayId: string, index: number) => `${dayId}-meal-${index}`;
@@ -60,17 +59,17 @@ const WorkoutDay: React.FC<WorkoutDayProps> = ({ id, day, focus, data }) => {
         <div className="bg-gray-700/50 rounded-lg p-4 mb-8 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
-              onClick={() => setCreatineChecked(!creatineChecked)}
+              onClick={() => toggleCreatine(currentWeek)}
               className="text-gray-300 hover:text-white transition-colors"
-              title={creatineChecked ? "Marcar como incompleto" : "Marcar como completado"}
+              title={creatineStatus[currentWeek] ? "Marcar como incompleto" : "Marcar como completado"}
             >
-              {creatineChecked ? (
+              {creatineStatus[currentWeek] ? (
                 <CheckSquare className="h-6 w-6 text-green-500" />
               ) : (
                 <Square className="h-6 w-6" />
               )}
             </button>
-            <span className="font-semibold text-lg">TOMAR CREATINA</span>
+            <span className="font-semibold text-lg">TOMAR CREATINA - Semana {currentWeek}</span>
           </div>
         </div>
 
