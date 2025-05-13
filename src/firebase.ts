@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getDatabase, connectDatabaseEmulator } from "firebase/database";
+import { getDatabase, connectDatabaseEmulator, enableIndexedDbPersistence } from "firebase/database";
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
@@ -19,16 +19,14 @@ const storage = getStorage(app);
 
 // Enable offline persistence for Realtime Database
 if (typeof window !== 'undefined') {
-  import('firebase/database').then(({ enableIndexedDbPersistence }) => {
-    enableIndexedDbPersistence(db)
-      .catch((err) => {
-        if (err.code === 'failed-precondition') {
-          console.warn('Multiple tabs open, persistence can only be enabled in one tab at a time.');
-        } else if (err.code === 'unimplemented') {
-          console.warn('The current browser doesn\'t support offline persistence');
-        }
-      });
-  });
+  enableIndexedDbPersistence(db)
+    .catch((err) => {
+      if (err.code === 'failed-precondition') {
+        console.warn('Multiple tabs open, persistence can only be enabled in one tab at a time.');
+      } else if (err.code === 'unimplemented') {
+        console.warn('The current browser doesn\'t support offline persistence');
+      }
+    });
 }
 
 export { db, storage };
