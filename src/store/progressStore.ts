@@ -11,10 +11,12 @@ interface ProgressState {
   currentWeek: number;
   completedExercises: Set<string>;
   completedMeals: Set<string>;
+  creatineStatus: Record<number, boolean>;
   progressPhotos: Record<string, ProgressPhotos>;
   setCurrentWeek: (week: number) => void;
   toggleExercise: (id: string) => void;
   toggleMeal: (id: string) => void;
+  toggleCreatine: (week: number) => void;
   updateProgressPhotos: (week: number, type: 'front' | 'back', url: string) => void;
   initializeFirebase: () => void;
 }
@@ -23,6 +25,7 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
   currentWeek: 1,
   completedExercises: new Set<string>(),
   completedMeals: new Set<string>(),
+  creatineStatus: {},
   progressPhotos: {},
   
   setCurrentWeek: (week: number) => {
@@ -57,6 +60,20 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
     });
   },
 
+  toggleCreatine: (week: number) => {
+    set((state) => {
+      const newStatus = {
+        ...state.creatineStatus,
+        [week]: !state.creatineStatus[week]
+      };
+      
+      const creatineRef = ref(db, 'progress/creatine');
+      set(creatineRef, newStatus);
+      
+      return { creatineStatus: newStatus };
+    });
+  },
+
   updateProgressPhotos: (week: number, type: 'front' | 'back', url: string) => {
     set((state) => {
       const weekKey = `week${week}`;
@@ -81,7 +98,8 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
     set({
       completedExercises: new Set<string>(),
       completedMeals: new Set<string>(),
-      progressPhotos: {}
+      progressPhotos: {},
+      creatineStatus: {}
     });
 
     const { currentWeek } = get();
@@ -101,6 +119,13 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
     onValue(photosRef, (snapshot) => {
       const data = snapshot.val() || {};
       set({ progressPhotos: data });
+    });
+
+    // Initialize creatine status
+    const creatineRef = ref(db, 'progress/creatine');
+    onValue(creatineRef, (snapshot) => {
+      const data = snapshot.val() || {};
+      set({ creatineStatus: data });
     });
   }
 }));
