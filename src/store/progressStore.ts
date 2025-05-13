@@ -66,7 +66,11 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
         ...state.creatineChecked,
         [dayId]: !state.creatineChecked[dayId]
       };
-      syncWithFirebase(state.currentWeek, state.completedExercises, state.completedMeals, newCreatineChecked);
+      
+      // Update Firebase immediately
+      const creatineRef = ref(db, `progress/week${state.currentWeek}/creatine/${dayId}`);
+      set(creatineRef, !state.creatineChecked[dayId]);
+      
       return { creatineChecked: newCreatineChecked };
     });
   },
@@ -91,20 +95,12 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
   },
 
   initializeFirebase: () => {
-    // Initialize with empty sets first
-    set({
-      completedExercises: new Set<string>(),
-      completedMeals: new Set<string>(),
-      creatineChecked: {},
-      progressPhotos: {}
-    });
-
     const { currentWeek } = get();
     
-    // Initialize progress data
-    const progressRef = ref(db, `progress/week${currentWeek}`);
-    onValue(progressRef, (snapshot) => {
-      const data = snapshot.val() || { exercises: [], meals: [], creatine: {} };
+    // Listen to all progress data for the current week
+    const weekRef = ref(db, `progress/week${currentWeek}`);
+    onValue(weekRef, (snapshot) => {
+      const data = snapshot.val() || {};
       set({
         completedExercises: new Set(data.exercises || []),
         completedMeals: new Set(data.meals || []),
@@ -112,7 +108,7 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
       });
     });
 
-    // Initialize photos data
+    // Listen to photos data
     const photosRef = ref(db, 'progress/photos');
     onValue(photosRef, (snapshot) => {
       const data = snapshot.val() || {};
@@ -127,8 +123,8 @@ function syncWithFirebase(
   meals: Set<string>,
   creatine: Record<string, boolean>
 ) {
-  const progressRef = ref(db, `progress/week${week}`);
-  set(progressRef, {
+  const weekRef = ref(db, `progress/week${week}`);
+  set(weekRef, {
     exercises: Array.from(exercises),
     meals: Array.from(meals),
     creatine
