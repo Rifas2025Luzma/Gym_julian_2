@@ -67,7 +67,6 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
         [dayId]: !state.creatineChecked[dayId]
       };
       
-      // Update Firebase immediately
       const creatineRef = ref(db, `progress/week${state.currentWeek}/creatine/${dayId}`);
       set(creatineRef, !state.creatineChecked[dayId]);
       
@@ -87,8 +86,9 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
         }
       };
       
-      const photosRef = ref(db, `progress/photos`);
-      set(photosRef, updatedPhotos);
+      // Update specific week's photos in Firebase
+      const weekPhotosRef = ref(db, `progress/photos/week${week}`);
+      set(weekPhotosRef, updatedPhotos[weekKey]);
       
       return { progressPhotos: updatedPhotos };
     });
@@ -108,11 +108,21 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
       });
     });
 
-    // Listen to photos data
+    // Listen to photos data with proper structure
     const photosRef = ref(db, 'progress/photos');
     onValue(photosRef, (snapshot) => {
       const data = snapshot.val() || {};
-      set({ progressPhotos: data });
+      // Ensure the data structure is correct
+      const formattedPhotos: Record<string, ProgressPhotos> = {};
+      Object.entries(data).forEach(([weekKey, weekData]) => {
+        if (weekData && typeof weekData === 'object') {
+          formattedPhotos[weekKey] = {
+            front: (weekData as ProgressPhotos).front || '',
+            back: (weekData as ProgressPhotos).back || ''
+          };
+        }
+      });
+      set({ progressPhotos: formattedPhotos });
     });
   }
 }));

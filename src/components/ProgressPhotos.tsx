@@ -12,7 +12,9 @@ const ProgressPhotos: React.FC<ProgressPhotosProps> = ({ weekNumber }) => {
   const [uploadingType, setUploadingType] = useState<'front' | 'back' | null>(null);
   const { updateProgressPhotos, progressPhotos } = useProgressStore();
   
-  const currentPhotos = progressPhotos[`week${weekNumber}`] || { front: '', back: '' };
+  // Ensure weekNumber is valid and provide default empty object if not found
+  const weekKey = `week${weekNumber}`;
+  const currentPhotos = progressPhotos[weekKey] || { front: '', back: '' };
 
   const convertGoogleDriveUrl = (url: string) => {
     if (!url.includes('drive.google.com')) return url;
