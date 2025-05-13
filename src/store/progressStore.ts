@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { ref, onValue, set, get as firebaseGet } from 'firebase/database';
-import { db } from '../firebase';
+import { db, initializeAuth } from '../firebase';
 
 interface ProgressPhotos {
   front: string;
@@ -94,6 +94,12 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
 
   initializeFirebase: async () => {
     try {
+      // Initialize authentication first
+      const authInitialized = await initializeAuth();
+      if (!authInitialized) {
+        throw new Error('Failed to initialize authentication');
+      }
+
       // Get the last saved week from Firebase
       const weekRef = ref(db, 'currentWeek');
       const weekSnapshot = await firebaseGet(weekRef);
@@ -112,6 +118,7 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
       });
     } catch (error) {
       console.error('Error initializing Firebase:', error);
+      throw error; // Re-throw to allow error handling in the UI
     }
   }
 }));

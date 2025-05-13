@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getDatabase } from "firebase/database";
 import { getStorage } from "firebase/storage";
+import { getAuth, signInAnonymously } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAwanfdxAJqUhV3APB8W8pCQeQ2qysPKog",
@@ -13,5 +14,17 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
+export const auth = getAuth(app);
 export const db = getDatabase(app);
 export const storage = getStorage(app);
+
+// Initialize anonymous auth
+export const initializeAuth = async () => {
+  try {
+    await signInAnonymously(auth);
+    return true;
+  } catch (error) {
+    console.error("Error initializing auth:", error);
+    return false;
+  }
+};
