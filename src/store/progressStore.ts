@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { ref, onValue, set } from 'firebase/database';
+import { ref, onValue, set, get as firebaseGet } from 'firebase/database';
 import { db } from '../firebase';
 
 interface ProgressPhotos {
@@ -30,8 +30,8 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
   
   setCurrentWeek: (week: number) => {
     set({ currentWeek: week });
-    const { completedExercises, completedMeals } = get();
-    syncWithFirebase(week, completedExercises, completedMeals);
+    // Load data for the new week
+    loadWeekData(week, get().completedExercises, get().completedMeals);
   },
 
   toggleExercise: (id: string) => {
@@ -42,7 +42,11 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
       } else {
         newSet.add(id);
       }
-      syncWithFirebase(state.currentWeek, newSet, state.completedMeals);
+      
+      // Save to Firebase immediately
+      const weekRef = ref(db, `progress/week${state.currentWeek}/exercises`);
+      set(weekRef, Array.from(newSet));
+      
       return { completedExercises: newSet };
     });
   },
@@ -55,7 +59,11 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
       } else {
         newSet.add(id);
       }
-      syncWithFirebase(state.currentWeek, state.completedExercises, newSet);
+      
+      // Save to Firebase immediately
+      const weekRef = ref(db, `progress/week${state.currentWeek}/meals`);
+      set(weekRef, Array.from(newSet));
+      
       return { completedMeals: newSet };
     });
   },
@@ -67,6 +75,7 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
         [week]: !state.creatineStatus[week]
       };
       
+      // Save to Firebase immediately
       const creatineRef = ref(db, 'progress/creatine');
       set(creatineRef, newStatus);
       
@@ -86,7 +95,8 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
         }
       };
       
-      const photosRef = ref(db, `progress/photos`);
+      // Save to Firebase immediately
+      const photosRef = ref(db, 'progress/photos');
       set(photosRef, updatedPhotos);
       
       return { progressPhotos: updatedPhotos };
@@ -94,19 +104,11 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
   },
 
   initializeFirebase: () => {
-    // Initialize with empty sets first
-    set({
-      completedExercises: new Set<string>(),
-      completedMeals: new Set<string>(),
-      progressPhotos: {},
-      creatineStatus: {}
-    });
-
     const { currentWeek } = get();
     
-    // Initialize progress data
-    const progressRef = ref(db, `progress/week${currentWeek}`);
-    onValue(progressRef, (snapshot) => {
+    // Initialize progress data for current week
+    const weekRef = ref(db, `progress/week${currentWeek}`);
+    onValue(weekRef, (snapshot) => {
       const data = snapshot.val() || { exercises: [], meals: [] };
       set({
         completedExercises: new Set(data.exercises || []),
@@ -130,10 +132,14 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
   }
 }));
 
-function syncWithFirebase(week: number, exercises: Set<string>, meals: Set<string>) {
-  const progressRef = ref(db, `progress/week${week}`);
-  set(progressRef, {
-    exercises: Array.from(exercises),
-    meals: Array.from(meals)
+// Helper function to load week data
+function loadWeekData(week: number, exercises: Set<string>, meals: Set<string>) {
+  const weekRef = ref(db, `progress/week${week}`);
+  firebaseGet(weekRef).then((snapshot) => {
+    const data = snapshot.val() || { exercises: [], meals: [] };
+    set(weekRef, {
+      exercises: Array.from(exercises),
+      meals: Array.from(meals)
+    });
   });
 }
