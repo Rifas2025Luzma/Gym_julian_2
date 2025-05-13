@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { PlayCircle, CheckSquare, Square, X } from 'lucide-react';
+import { Menu, X, PlayCircle, CheckSquare, Square } from 'lucide-react';
 import { useProgressStore } from '../store/progressStore';
 
 interface Exercise {
