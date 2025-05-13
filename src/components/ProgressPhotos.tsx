@@ -7,12 +7,20 @@ interface ProgressPhotosProps {
 }
 
 const ProgressPhotos: React.FC<ProgressPhotosProps> = ({ weekNumber }) => {
+  // Early return if weekNumber is not valid
+  if (!weekNumber || isNaN(weekNumber)) {
+    console.warn('Invalid week number provided to ProgressPhotos component');
+    return null;
+  }
+
   const [frontUrl, setFrontUrl] = useState('');
   const [backUrl, setBackUrl] = useState('');
   const [uploadingType, setUploadingType] = useState<'front' | 'back' | null>(null);
   const { updateProgressPhotos, progressPhotos } = useProgressStore();
   
-  const currentPhotos = progressPhotos[`week${weekNumber}`] || { front: '', back: '' };
+  // Ensure we're using a valid week key
+  const weekKey = `week${weekNumber}`;
+  const currentPhotos = progressPhotos[weekKey] || { front: '', back: '' };
 
   const convertGoogleDriveUrl = (url: string) => {
     if (!url.includes('drive.google.com')) return url;
