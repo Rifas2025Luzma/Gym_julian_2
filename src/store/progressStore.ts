@@ -11,10 +11,12 @@ interface ProgressState {
   currentWeek: number;
   completedExercises: Set<string>;
   completedMeals: Set<string>;
+  creatineTaken: Set<string>;
   progressPhotos: Record<string, ProgressPhotos>;
   setCurrentWeek: (week: number) => void;
   toggleExercise: (id: string) => void;
   toggleMeal: (id: string) => void;
+  toggleCreatine: (dayId: string) => void;
   updateProgressPhotos: (week: number, type: 'front' | 'back', url: string) => void;
   initializeFirebase: () => void;
 }
@@ -23,12 +25,13 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
   currentWeek: 1,
   completedExercises: new Set<string>(),
   completedMeals: new Set<string>(),
+  creatineTaken: new Set<string>(),
   progressPhotos: {},
   
   setCurrentWeek: (week: number) => {
     set({ currentWeek: week });
-    const { completedExercises, completedMeals } = get();
-    syncWithFirebase(week, completedExercises, completedMeals);
+    const { completedExercises, completedMeals, creatineTaken } = get();
+    syncWithFirebase(week, completedExercises, completedMeals, creatineTaken);
   },
 
   toggleExercise: (id: string) => {
@@ -39,7 +42,7 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
       } else {
         newSet.add(id);
       }
-      syncWithFirebase(state.currentWeek, newSet, state.completedMeals);
+      syncWithFirebase(state.currentWeek, newSet, state.completedMeals, state.creatineTaken);
       return { completedExercises: newSet };
     });
   },
@@ -52,8 +55,21 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
       } else {
         newSet.add(id);
       }
-      syncWithFirebase(state.currentWeek, state.completedExercises, newSet);
+      syncWithFirebase(state.currentWeek, state.completedExercises, newSet, state.creatineTaken);
       return { completedMeals: newSet };
+    });
+  },
+
+  toggleCreatine: (dayId: string) => {
+    set((state) => {
+      const newSet = new Set(state.creatineTaken);
+      if (newSet.has(dayId)) {
+        newSet.delete(dayId);
+      } else {
+        newSet.add(dayId);
+      }
+      syncWithFirebase(state.currentWeek, state.completedExercises, state.completedMeals, newSet);
+      return { creatineTaken: newSet };
     });
   },
 
@@ -81,6 +97,7 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
     set({
       completedExercises: new Set<string>(),
       completedMeals: new Set<string>(),
+      creatineTaken: new Set<string>(),
       progressPhotos: {}
     });
 
@@ -89,10 +106,11 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
     // Initialize progress data
     const progressRef = ref(db, `progress/week${currentWeek}`);
     onValue(progressRef, (snapshot) => {
-      const data = snapshot.val() || { exercises: [], meals: [] };
+      const data = snapshot.val() || { exercises: [], meals: [], creatine: [] };
       set({
         completedExercises: new Set(data.exercises || []),
-        completedMeals: new Set(data.meals || [])
+        completedMeals: new Set(data.meals || []),
+        creatineTaken: new Set(data.creatine || [])
       });
     });
 
@@ -105,10 +123,16 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
   }
 }));
 
-function syncWithFirebase(week: number, exercises: Set<string>, meals: Set<string>) {
+function syncWithFirebase(
+  week: number, 
+  exercises: Set<string>, 
+  meals: Set<string>,
+  creatine: Set<string>
+) {
   const progressRef = ref(db, `progress/week${week}`);
   set(progressRef, {
     exercises: Array.from(exercises),
-    meals: Array.from(meals)
+    meals: Array.from(meals),
+    creatine: Array.from(creatine)
   });
 }

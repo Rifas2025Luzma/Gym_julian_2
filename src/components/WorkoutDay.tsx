@@ -26,12 +26,12 @@ interface WorkoutDayProps {
 }
 
 const WorkoutDay: React.FC<WorkoutDayProps> = ({ id, day, focus, data }) => {
-  const { completedExercises, completedMeals, toggleExercise, toggleMeal } = useProgressStore();
+  const { completedExercises, completedMeals, creatineTaken, toggleExercise, toggleMeal, toggleCreatine } = useProgressStore();
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
-  const [creatineChecked, setCreatineChecked] = useState(false);
 
   const getExerciseId = (dayId: string, index: number) => `${dayId}-exercise-${index}`;
   const getMealId = (dayId: string, index: number) => `${dayId}-meal-${index}`;
+  const creatineId = `${id}-creatine`;
 
   const exerciseProgress = data.exercises.reduce((acc, _, index) => {
     const exerciseId = getExerciseId(id, index);
@@ -45,6 +45,7 @@ const WorkoutDay: React.FC<WorkoutDayProps> = ({ id, day, focus, data }) => {
 
   const exercisePercentage = (exerciseProgress / data.exercises.length) * 100;
   const mealPercentage = (mealProgress / data.meals.length) * 100;
+  const isCreatineTaken = creatineTaken.has(creatineId);
 
   const handleExerciseClick = (exercise: Exercise) => {
     setSelectedExercise(selectedExercise?.name === exercise.name ? null : exercise);
@@ -60,11 +61,11 @@ const WorkoutDay: React.FC<WorkoutDayProps> = ({ id, day, focus, data }) => {
         <div className="bg-gray-700/50 rounded-lg p-4 mb-8 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
-              onClick={() => setCreatineChecked(!creatineChecked)}
+              onClick={() => toggleCreatine(creatineId)}
               className="text-gray-300 hover:text-white transition-colors"
-              title={creatineChecked ? "Marcar como incompleto" : "Marcar como completado"}
+              title={isCreatineTaken ? "Marcar como incompleto" : "Marcar como completado"}
             >
-              {creatineChecked ? (
+              {isCreatineTaken ? (
                 <CheckSquare className="h-6 w-6 text-green-500" />
               ) : (
                 <Square className="h-6 w-6" />
@@ -158,7 +159,7 @@ const WorkoutDay: React.FC<WorkoutDayProps> = ({ id, day, focus, data }) => {
                             <div className="relative pt-[56.25%]">
                               <iframe
                                 className="absolute top-0 left-0 w-full h-full rounded-lg"
-                                src={exercise.videoUrl.replace('watch?v=', 'embed/')}
+                                src={exercise.videoUrl}
                                 title={exercise.name}
                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                 allowFullScreen
