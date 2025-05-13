@@ -11,12 +11,10 @@ interface ProgressState {
   currentWeek: number;
   completedExercises: Set<string>;
   completedMeals: Set<string>;
-  creatineChecked: Record<string, boolean>;
   progressPhotos: Record<string, ProgressPhotos>;
   setCurrentWeek: (week: number) => void;
   toggleExercise: (id: string) => void;
   toggleMeal: (id: string) => void;
-  toggleCreatine: (dayId: string) => void;
   updateProgressPhotos: (week: number, type: 'front' | 'back', url: string) => void;
   initializeFirebase: () => void;
 }
@@ -25,13 +23,12 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
   currentWeek: 1,
   completedExercises: new Set<string>(),
   completedMeals: new Set<string>(),
-  creatineChecked: {},
   progressPhotos: {},
   
   setCurrentWeek: (week: number) => {
     set({ currentWeek: week });
-    const { completedExercises, completedMeals, creatineChecked } = get();
-    syncWithFirebase(week, completedExercises, completedMeals, creatineChecked);
+    const { completedExercises, completedMeals } = get();
+    syncWithFirebase(week, completedExercises, completedMeals);
   },
 
   toggleExercise: (id: string) => {
@@ -42,7 +39,7 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
       } else {
         newSet.add(id);
       }
-      syncWithFirebase(state.currentWeek, newSet, state.completedMeals, state.creatineChecked);
+      syncWithFirebase(state.currentWeek, newSet, state.completedMeals);
       return { completedExercises: newSet };
     });
   },
@@ -55,22 +52,8 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
       } else {
         newSet.add(id);
       }
-      syncWithFirebase(state.currentWeek, state.completedExercises, newSet, state.creatineChecked);
+      syncWithFirebase(state.currentWeek, state.completedExercises, newSet);
       return { completedMeals: newSet };
-    });
-  },
-
-  toggleCreatine: (dayId: string) => {
-    set((state) => {
-      const newCreatineChecked = {
-        ...state.creatineChecked,
-        [dayId]: !state.creatineChecked[dayId]
-      };
-      
-      const creatineRef = ref(db, `progress/week${state.currentWeek}/creatine/${dayId}`);
-      set(creatineRef, !state.creatineChecked[dayId]);
-      
-      return { creatineChecked: newCreatineChecked };
     });
   },
 
@@ -86,57 +69,46 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
         }
       };
       
-      // Update specific week's photos in Firebase
-      const weekPhotosRef = ref(db, `progress/photos/week${week}`);
-      set(weekPhotosRef, updatedPhotos[weekKey]);
+      const photosRef = ref(db, `progress/photos`);
+      set(photosRef, updatedPhotos);
       
       return { progressPhotos: updatedPhotos };
     });
   },
 
   initializeFirebase: () => {
+    // Initialize with empty sets first
+    set({
+      completedExercises: new Set<string>(),
+      completedMeals: new Set<string>(),
+      progressPhotos: {}
+    });
+
     const { currentWeek } = get();
     
-    // Listen to all progress data for the current week
-    const weekRef = ref(db, `progress/week${currentWeek}`);
-    onValue(weekRef, (snapshot) => {
-      const data = snapshot.val() || {};
+    // Initialize progress data
+    const progressRef = ref(db, `progress/week${currentWeek}`);
+    onValue(progressRef, (snapshot) => {
+      const data = snapshot.val() || { exercises: [], meals: [] };
       set({
         completedExercises: new Set(data.exercises || []),
-        completedMeals: new Set(data.meals || []),
-        creatineChecked: data.creatine || {}
+        completedMeals: new Set(data.meals || [])
       });
     });
 
-    // Listen to photos data with proper structure
+    // Initialize photos data
     const photosRef = ref(db, 'progress/photos');
     onValue(photosRef, (snapshot) => {
       const data = snapshot.val() || {};
-      // Ensure the data structure is correct
-      const formattedPhotos: Record<string, ProgressPhotos> = {};
-      Object.entries(data).forEach(([weekKey, weekData]) => {
-        if (weekData && typeof weekData === 'object') {
-          formattedPhotos[weekKey] = {
-            front: (weekData as ProgressPhotos).front || '',
-            back: (weekData as ProgressPhotos).back || ''
-          };
-        }
-      });
-      set({ progressPhotos: formattedPhotos });
+      set({ progressPhotos: data });
     });
   }
 }));
 
-function syncWithFirebase(
-  week: number, 
-  exercises: Set<string>, 
-  meals: Set<string>,
-  creatine: Record<string, boolean>
-) {
-  const weekRef = ref(db, `progress/week${week}`);
-  set(weekRef, {
+function syncWithFirebase(week: number, exercises: Set<string>, meals: Set<string>) {
+  const progressRef = ref(db, `progress/week${week}`);
+  set(progressRef, {
     exercises: Array.from(exercises),
-    meals: Array.from(meals),
-    creatine
+    meals: Array.from(meals)
   });
 }
