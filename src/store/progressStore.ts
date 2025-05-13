@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { ref, onValue, set } from 'firebase/database';
+import { ref, onValue, set, get as firebaseGet } from 'firebase/database';
 import { db } from '../firebase';
 
 interface ProgressPhotos {
@@ -30,8 +30,8 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
   
   setCurrentWeek: (week: number) => {
     set({ currentWeek: week });
-    const { completedExercises, completedMeals, creatineTaken } = get();
-    syncWithFirebase(week, completedExercises, completedMeals, creatineTaken);
+    // Load data for the new week
+    loadWeekData(week, set);
   },
 
   toggleExercise: (id: string) => {
@@ -92,36 +92,47 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
     });
   },
 
-  initializeFirebase: () => {
-    // Initialize with empty sets first
-    set({
-      completedExercises: new Set<string>(),
-      completedMeals: new Set<string>(),
-      creatineTaken: new Set<string>(),
-      progressPhotos: {}
-    });
+  initializeFirebase: async () => {
+    try {
+      // Get the last saved week from Firebase
+      const weekRef = ref(db, 'currentWeek');
+      const weekSnapshot = await firebaseGet(weekRef);
+      const savedWeek = weekSnapshot.val() || 1;
 
-    const { currentWeek } = get();
-    
-    // Initialize progress data
-    const progressRef = ref(db, `progress/week${currentWeek}`);
-    onValue(progressRef, (snapshot) => {
-      const data = snapshot.val() || { exercises: [], meals: [], creatine: [] };
-      set({
-        completedExercises: new Set(data.exercises || []),
-        completedMeals: new Set(data.meals || []),
-        creatineTaken: new Set(data.creatine || [])
+      set({ currentWeek: savedWeek });
+      
+      // Load data for the current week
+      loadWeekData(savedWeek, set);
+
+      // Initialize photos data
+      const photosRef = ref(db, 'progress/photos');
+      onValue(photosRef, (snapshot) => {
+        const data = snapshot.val() || {};
+        set({ progressPhotos: data });
       });
-    });
-
-    // Initialize photos data
-    const photosRef = ref(db, 'progress/photos');
-    onValue(photosRef, (snapshot) => {
-      const data = snapshot.val() || {};
-      set({ progressPhotos: data });
-    });
+    } catch (error) {
+      console.error('Error initializing Firebase:', error);
+    }
   }
 }));
+
+async function loadWeekData(week: number, setState: any) {
+  const progressRef = ref(db, `progress/week${week}`);
+  
+  // Save current week to Firebase
+  const weekRef = ref(db, 'currentWeek');
+  await set(weekRef, week);
+
+  // Listen for changes in the current week's data
+  onValue(progressRef, (snapshot) => {
+    const data = snapshot.val() || { exercises: [], meals: [], creatine: [] };
+    setState({
+      completedExercises: new Set(data.exercises || []),
+      completedMeals: new Set(data.meals || []),
+      creatineTaken: new Set(data.creatine || [])
+    });
+  });
+}
 
 function syncWithFirebase(
   week: number, 
