@@ -240,3 +240,5 @@ const WorkoutDay: React.FC<WorkoutDayProps> = ({ id, day, focus, data }) => {
 }
 
 export default WorkoutDay;
+
+export default WorkoutDay
