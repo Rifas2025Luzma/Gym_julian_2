@@ -30,8 +30,8 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
   
   setCurrentWeek: (week: number) => {
     set({ currentWeek: week });
-    const { completedExercises, completedMeals, creatineChecked } = get();
-    syncWithFirebase(week, completedExercises, completedMeals, creatineChecked);
+    // Load data for the selected week
+    loadWeekData(week, set);
   },
 
   toggleExercise: (id: string) => {
@@ -93,16 +93,8 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
   initializeFirebase: () => {
     const { currentWeek } = get();
     
-    // Initialize progress data
-    const progressRef = ref(db, `progress/week${currentWeek}`);
-    onValue(progressRef, (snapshot) => {
-      const data = snapshot.val() || { exercises: [], meals: [], creatineChecked: {} };
-      set({
-        completedExercises: new Set(data.exercises || []),
-        completedMeals: new Set(data.meals || []),
-        creatineChecked: data.creatineChecked || {}
-      });
-    });
+    // Load initial data for current week
+    loadWeekData(currentWeek, set);
 
     // Initialize photos data
     const photosRef = ref(db, 'progress/photos');
@@ -113,14 +105,26 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
   }
 }));
 
+function loadWeekData(week: number, set: any) {
+  const weekRef = ref(db, `progress/week${week}`);
+  onValue(weekRef, (snapshot) => {
+    const data = snapshot.val() || { exercises: [], meals: [], creatineChecked: {} };
+    set({
+      completedExercises: new Set(data.exercises || []),
+      completedMeals: new Set(data.meals || []),
+      creatineChecked: data.creatineChecked || {}
+    });
+  });
+}
+
 function syncWithFirebase(
   week: number, 
   exercises: Set<string>, 
   meals: Set<string>,
   creatineChecked: Record<string, boolean>
 ) {
-  const progressRef = ref(db, `progress/week${week}`);
-  set(progressRef, {
+  const weekRef = ref(db, `progress/week${week}`);
+  set(weekRef, {
     exercises: Array.from(exercises),
     meals: Array.from(meals),
     creatineChecked
