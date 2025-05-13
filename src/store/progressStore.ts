@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { ref, onValue, set, get as firebaseGet } from 'firebase/database';
+import { ref, onValue, set } from 'firebase/database';
 import { db } from '../firebase';
 
 interface ProgressPhotos {
@@ -11,12 +11,10 @@ interface ProgressState {
   currentWeek: number;
   completedExercises: Set<string>;
   completedMeals: Set<string>;
-  creatineStatus: Record<number, boolean>;
   progressPhotos: Record<string, ProgressPhotos>;
   setCurrentWeek: (week: number) => void;
   toggleExercise: (id: string) => void;
   toggleMeal: (id: string) => void;
-  toggleCreatine: (week: number) => void;
   updateProgressPhotos: (week: number, type: 'front' | 'back', url: string) => void;
   initializeFirebase: () => void;
 }
@@ -25,19 +23,12 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
   currentWeek: 1,
   completedExercises: new Set<string>(),
   completedMeals: new Set<string>(),
-  creatineStatus: {},
   progressPhotos: {},
   
   setCurrentWeek: (week: number) => {
     set({ currentWeek: week });
-    const weekRef = ref(db, `progress/week${week}`);
-    firebaseGet(weekRef).then((snapshot) => {
-      const data = snapshot.val() || { exercises: [], meals: [] };
-      set({
-        completedExercises: new Set(data.exercises || []),
-        completedMeals: new Set(data.meals || [])
-      });
-    });
+    const { completedExercises, completedMeals } = get();
+    syncWithFirebase(week, completedExercises, completedMeals);
   },
 
   toggleExercise: (id: string) => {
@@ -48,10 +39,7 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
       } else {
         newSet.add(id);
       }
-      
-      const weekRef = ref(db, `progress/week${state.currentWeek}/exercises`);
-      set(weekRef, Array.from(newSet));
-      
+      syncWithFirebase(state.currentWeek, newSet, state.completedMeals);
       return { completedExercises: newSet };
     });
   },
@@ -64,25 +52,8 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
       } else {
         newSet.add(id);
       }
-      
-      const weekRef = ref(db, `progress/week${state.currentWeek}/meals`);
-      set(weekRef, Array.from(newSet));
-      
+      syncWithFirebase(state.currentWeek, state.completedExercises, newSet);
       return { completedMeals: newSet };
-    });
-  },
-
-  toggleCreatine: (week: number) => {
-    set((state) => {
-      const newStatus = {
-        ...state.creatineStatus,
-        [week]: !state.creatineStatus[week]
-      };
-      
-      const creatineRef = ref(db, 'progress/creatine');
-      set(creatineRef, newStatus);
-      
-      return { creatineStatus: newStatus };
     });
   },
 
@@ -98,7 +69,7 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
         }
       };
       
-      const photosRef = ref(db, 'progress/photos');
+      const photosRef = ref(db, `progress/photos`);
       set(photosRef, updatedPhotos);
       
       return { progressPhotos: updatedPhotos };
@@ -106,11 +77,18 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
   },
 
   initializeFirebase: () => {
+    // Initialize with empty sets first
+    set({
+      completedExercises: new Set<string>(),
+      completedMeals: new Set<string>(),
+      progressPhotos: {}
+    });
+
     const { currentWeek } = get();
     
-    // Initialize progress data for current week
-    const weekRef = ref(db, `progress/week${currentWeek}`);
-    onValue(weekRef, (snapshot) => {
+    // Initialize progress data
+    const progressRef = ref(db, `progress/week${currentWeek}`);
+    onValue(progressRef, (snapshot) => {
       const data = snapshot.val() || { exercises: [], meals: [] };
       set({
         completedExercises: new Set(data.exercises || []),
@@ -124,12 +102,13 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
       const data = snapshot.val() || {};
       set({ progressPhotos: data });
     });
-
-    // Initialize creatine status
-    const creatineRef = ref(db, 'progress/creatine');
-    onValue(creatineRef, (snapshot) => {
-      const data = snapshot.val() || {};
-      set({ creatineStatus: data });
-    });
   }
 }));
+
+function syncWithFirebase(week: number, exercises: Set<string>, meals: Set<string>) {
+  const progressRef = ref(db, `progress/week${week}`);
+  set(progressRef, {
+    exercises: Array.from(exercises),
+    meals: Array.from(meals)
+  });
+}
