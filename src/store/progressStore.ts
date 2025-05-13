@@ -30,8 +30,14 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
   
   setCurrentWeek: (week: number) => {
     set({ currentWeek: week });
-    // Load data for the new week
-    loadWeekData(week, get().completedExercises, get().completedMeals);
+    const weekRef = ref(db, `progress/week${week}`);
+    firebaseGet(weekRef).then((snapshot) => {
+      const data = snapshot.val() || { exercises: [], meals: [] };
+      set({
+        completedExercises: new Set(data.exercises || []),
+        completedMeals: new Set(data.meals || [])
+      });
+    });
   },
 
   toggleExercise: (id: string) => {
@@ -43,7 +49,6 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
         newSet.add(id);
       }
       
-      // Save to Firebase immediately
       const weekRef = ref(db, `progress/week${state.currentWeek}/exercises`);
       set(weekRef, Array.from(newSet));
       
@@ -60,7 +65,6 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
         newSet.add(id);
       }
       
-      // Save to Firebase immediately
       const weekRef = ref(db, `progress/week${state.currentWeek}/meals`);
       set(weekRef, Array.from(newSet));
       
@@ -75,7 +79,6 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
         [week]: !state.creatineStatus[week]
       };
       
-      // Save to Firebase immediately
       const creatineRef = ref(db, 'progress/creatine');
       set(creatineRef, newStatus);
       
@@ -95,7 +98,6 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
         }
       };
       
-      // Save to Firebase immediately
       const photosRef = ref(db, 'progress/photos');
       set(photosRef, updatedPhotos);
       
@@ -131,15 +133,3 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
     });
   }
 }));
-
-// Helper function to load week data
-function loadWeekData(week: number, exercises: Set<string>, meals: Set<string>) {
-  const weekRef = ref(db, `progress/week${week}`);
-  firebaseGet(weekRef).then((snapshot) => {
-    const data = snapshot.val() || { exercises: [], meals: [] };
-    set(weekRef, {
-      exercises: Array.from(exercises),
-      meals: Array.from(meals)
-    });
-  });
-}
