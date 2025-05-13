@@ -6,9 +6,9 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['lucide-react'],
   },
-  base: '/Gym_julian/',
+  base: '/Gym_julian_2/',
   build: {
-    outDir: 'docs', // Cambiado a 'docs' para GitHub Pages
+    outDir: 'docs',
     emptyOutDir: true,
   },
 });
